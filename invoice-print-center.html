@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Invoice Print Center - ABS Crackers World</title>
+  <link rel="icon" href="assets/logo.png" />
+  <style>
+:root {
+  --bg: #f1f1ef;
+  --panel: #ffffff;
+  --ink: #1e1a16;
+  --muted: #6f6a63;
+  --line: #dcd9d4;
+  --red: #8f1d1d;
+  --red-dark: #781212;
+  --orange: #ff7a00;
+  --gold: #c8962a;
+  --focus: #1a5fd0;
+  --radius: 8px;
+  font-family: "Segoe UI", system-ui, -apple-system, "Noto Sans Tamil", "Latha", Roboto, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body { margin: 0; background: var(--bg); color: var(--ink); }
+body { font-size: 15px; line-height: 1.45; }
+
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+.muted { color: var(--muted); }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ---------- Buttons ---------- */
+.btn {
+  border: 1px solid var(--line);
+  background: #fff;
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn:hover:not(:disabled) { border-color: #b9b5ae; background: #faf9f7; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.primary { background: var(--red); border-color: var(--red); color: #fff; }
+.btn.primary:hover:not(:disabled) { background: var(--red-dark); border-color: var(--red-dark); }
+.btn.ghost { background: transparent; }
+.btn.small { padding: 7px 12px; font-size: 14px; }
+.btn.block { width: 100%; margin-top: 14px; }
+
+/* ---------- App shell ---------- */
+.app { max-width: 1100px; margin: 0 auto; padding: 0 14px 96px; }
+
+.topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 0;
+}
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.brand img { height: 42px; width: auto; }
+.brand strong { display: block; font-size: 17px; }
+.brand span { font-size: 13px; word-break: break-all; }
+
+.panel {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 12px; padding: 14px;
+}
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  border: 1px solid var(--line); background: #fff; border-radius: 999px;
+  padding: 8px 16px; cursor: pointer; font-weight: 600; font-size: 14px;
+}
+.chip:hover { border-color: #b9b5ae; }
+.chip[aria-pressed="true"] { background: var(--red); border-color: var(--red); color: #fff; }
+
+.custom-range { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-top: 12px; }
+.custom-range label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; }
+.custom-range input, .filter-row select {
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; background: #fff;
+}
+
+.filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 14px; }
+.search {
+  flex: 1 1 240px; border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 9px 12px; background: #fff;
+}
+.inline { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.inline.check { cursor: pointer; }
+.inline.check input { width: 18px; height: 18px; accent-color: var(--red); }
+
+.summary {
+  display: flex; flex-wrap: wrap; gap: 8px 24px; padding: 14px 4px 10px;
+  color: var(--muted); font-size: 14px;
+}
+.summary strong, .summary span { color: var(--ink); font-weight: 700; }
+
+/* ---------- Table ---------- */
+.table-wrap {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 12px; overflow-x: auto;
+}
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 11px 12px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: 13px; color: var(--muted); font-weight: 600; background: #faf9f7; }
+th.num, td.num { text-align: right; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: #fcfbf9; }
+tbody tr.selected { background: #fff4e8; }
+tbody tr.dup-mobile { background: #fff9e0; }
+tbody tr.dup-mobile.selected { background: #ffedc2; }
+.dup-tag {
+  border-color: #c8962a; color: #8a6415; font-weight: 700; margin-left: 4px;
+}
+td.cust { white-space: normal; min-width: 140px; }
+.col-check { width: 44px; }
+.col-check input, td input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--red); cursor: pointer; }
+.col-action { width: 1%; }
+.tag {
+  display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px;
+  border: 1px solid var(--line); border-radius: 999px; color: var(--muted);
+}
+.status { padding: 24px 16px; text-align: center; color: var(--muted); margin: 0; }
+.status:empty { display: none; }
+
+/* ---------- Sticky action bar ---------- */
+.actionbar {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;
+  padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: rgba(255, 255, 255, .96); border-top: 1px solid var(--line);
+}
+
+@media (max-width: 720px) {
+  .col-hide-sm { display: none; }
+  th, td { padding: 10px 8px; }
+  .actionbar .btn { flex: 1 1 0; }
+}
+
+/* =====================================================
+   PRINT SHEETS (A4) — hidden on screen
+   One order per sheet; long item lists split left/right
+   on the same page so they don't spill onto extra pages.
+   ===================================================== */
+#printArea { display: none; }
+
+.sheet {
+  position: relative;
+  display: flex; flex-direction: column;
+  width: 100%;
+  padding: 5mm 8mm;
+  margin-bottom: 5mm;
+  border: 0.5mm solid #000;
+  background: #fff;
+  color: #000;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 9pt;
+  break-inside: avoid;
+}
+.sheet:last-child { margin-bottom: 0; }
+
+.copy-label {
+  position: absolute; top: 2.6mm; right: 4mm;
+  font-size: 7pt; border: 0.2mm solid #000; padding: 0.3mm 1.8mm;
+}
+
+.sheet-head { text-align: center; border-bottom: 0.5mm solid #000; padding-bottom: 2mm; }
+.sheet-head .brandname { font-size: 13pt; font-weight: 700; letter-spacing: .2mm; }
+.sheet-head .tagline { font-size: 7.5pt; margin-top: 0.5mm; }
+
+.banner-wrap { text-align: center; margin: 2mm 0 0; }
+.banner {
+  display: inline-block; border: 0.35mm solid #000; font-weight: 700;
+  font-size: 10.5pt; letter-spacing: .3mm; padding: 1mm 8mm;
+}
+
+.meta { display: flex; justify-content: space-between; margin-top: 2.4mm; font-size: 8.5pt; }
+.meta .ref { font-size: 7.2pt; margin-top: 0.3mm; }
+
+.cust-box { margin-top: 2mm; padding: 1.6mm 2.4mm; border: 0.35mm solid #000; }
+.cust-box .row { display: flex; justify-content: space-between; gap: 4mm; font-weight: 700; font-size: 8.5pt; }
+.cust-box .addr { margin-top: 0.8mm; font-size: 8pt; }
+
+.items-cols { display: flex; gap: 5mm; margin-top: 2.4mm; }
+.items-cols .col { flex: 1 1 0; min-width: 0; }
+.items-cols .col + .col { border-left: 0.3mm dashed #000; padding-left: 5mm; }
+
+table.items { width: 100%; border-collapse: collapse; margin-top: 2.4mm; font-size: 8pt; table-layout: fixed; }
+.items-cols table.items { margin-top: 0; }
+table.items thead { display: table-header-group; }
+table.items th {
+  padding: 1mm; text-align: left; font-weight: 700;
+  border-top: 0.4mm solid #000; border-bottom: 0.4mm solid #000; white-space: normal;
+}
+table.items td { padding: 1mm; border: 0; border-bottom: 0.2mm solid #000; white-space: normal; word-break: break-word; }
+.desc-ta {
+  display: block; font-size: 7pt; margin-top: 0.3mm; color: #000;
+  font-family: "Noto Sans Tamil", "Nirmala UI", "Tamil Sangam MN", sans-serif;
+}
+table.items tr { break-inside: avoid; }
+table.items th:nth-child(1), table.items td:nth-child(1) { width: 9mm; text-align: center; white-space: nowrap; }
+table.items th:nth-child(3), table.items td:nth-child(3) { width: 9mm; text-align: center; }
+table.items th:nth-child(4), table.items td:nth-child(4) { width: 13mm; text-align: center; }
+table.items td.qty { font-weight: 700; font-size: 9pt; }
+table.items td.packed { padding: 0.7mm; }
+
+.packbox { display: block; height: 3.6mm; border: 0.25mm solid #000; margin: 0 0.5mm; }
+
+.merge-note {
+  margin-top: 2mm; padding: 1mm 2mm; border: 0.35mm solid #000;
+  font-size: 7.5pt; font-weight: 700; text-align: center;
+}
+table.items tr.subhead td {
+  background: #000; color: #fff; font-weight: 700; padding: 0.9mm 1.4mm; font-size: 7.2pt;
+}
+
+.chk-foot {
+  margin-top: 2.4mm; display: flex; justify-content: space-between;
+  border: 0.4mm solid #000; padding: 1.4mm 2.4mm; font-size: 8.5pt; font-weight: 700;
+}
+
+/* ---------- Share link ---------- */
+.share-panel {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  padding: 14px; margin-top: 10px; display: flex; flex-wrap: wrap; align-items: end; gap: 12px;
+}
+.share-panel label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; }
+.share-panel input[type="number"], .share-panel select {
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; background: #fff; width: 90px;
+}
+.share-link-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; width: 100%; margin-top: 4px; }
+.share-link-row input[type="text"] {
+  flex: 1 1 220px; border: 1px solid var(--line); border-radius: var(--radius); padding: 9px 10px; background: #faf9f7;
+  font-size: 13px;
+}
+.share-note { font-size: 12.5px; color: var(--muted); width: 100%; }
+
+.share-banner {
+  background: #fff4e8; border: 1px solid var(--gold); border-radius: 12px;
+  padding: 12px 14px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
+  margin-bottom: 12px;
+}
+.share-banner strong { display: block; }
+.share-banner .muted { font-size: 13px; }
+
+/* Elements hidden entirely when a visitor is viewing a shared link */
+body.share-mode .admin-only { display: none !important; }
+body.share-mode .col-check { display: none !important; }
+
+/* Amounts are sensitive - hidden on the list page (and share links) too;
+   only the printed invoice/packing sheets still show the grand total. */
+.col-amount { display: none !important; }
+
+/* ---------- Print rules ---------- */
+@page { size: A4 portrait; margin: 6mm; }
+
+@media print {
+  html, body { background: #fff !important; }
+  body > *:not(#printArea) { display: none !important; }
+  #printArea { display: block; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
+  </style>
+</head>
+<body>
+<!-- ============ MAIN APP ============ -->
+  <div id="appView" class="app">
+    <header class="topbar">
+      <div class="brand">
+        <img src="assets/logo.png" alt="" />
+        <div>
+          <strong>Invoice Print Center</strong>
+        </div>
+      </div>
+    </header>
+
+    <section class="panel filters" aria-label="Filters">
+      <div class="chips admin-only" id="rangeChips" role="group" aria-label="Date range">
+        <button type="button" class="chip" data-range="all">All</button>
+        <button type="button" class="chip" data-range="today">Today</button>
+        <button type="button" class="chip" data-range="yesterday">Yesterday</button>
+        <button type="button" class="chip" data-range="week">Last 7 days</button>
+        <button type="button" class="chip" data-range="month">This month</button>
+        <button type="button" class="chip" data-range="custom">Pick dates</button>
+      </div>
+
+      <div class="custom-range admin-only" id="customRange" hidden>
+        <label>From <input type="date" id="fromDate" /></label>
+        <label>To <input type="date" id="toDate" /></label>
+        <button type="button" class="btn small" id="applyRange">Show invoices</button>
+      </div>
+
+      <div class="filter-row">
+        <input type="search" id="search" class="search" placeholder="Search invoice no, name or mobile" aria-label="Search invoices" />
+
+        <label class="inline">
+          Sort
+          <select id="sortBy">
+            <option value="date_asc">Date (oldest first)</option>
+            <option value="date_desc">Date (newest first)</option>
+            <option value="amount_desc">Amount (high to low)</option>
+            <option value="amount_asc">Amount (low to high)</option>
+            <option value="name_asc">Customer (A-Z)</option>
+          </select>
+        </label>
+
+        <label class="inline admin-only">
+          Copies
+          <select id="copies">
+            <option value="1">1 (Customer)</option>
+            <option value="2">2 (Customer + Office)</option>
+          </select>
+        </label>
+
+        <button type="button" class="btn ghost small" id="refreshBtn">Refresh</button>
+        <button type="button" class="btn ghost small admin-only" id="shareBtn">Share link</button>
+      </div>
+
+      <div class="share-panel admin-only" id="sharePanel" hidden>
+        <label>Link is valid for
+          <input type="number" id="shareExpiryNum" min="1" step="1" value="24" />
+        </label>
+        <label>Unit
+          <select id="shareExpiryUnit">
+            <option value="hours">Hours</option>
+            <option value="days">Days</option>
+          </select>
+        </label>
+        <button type="button" class="btn primary small" id="shareCreateBtn">Create link</button>
+        <p class="share-note">Creates a read-only link for the invoices currently shown (no ₹ amounts) for whoever you send it to. It stops working after the time above.</p>
+        <div class="share-link-row" id="shareLinkRow" hidden>
+          <input type="text" id="shareLinkOutput" readonly />
+          <button type="button" class="btn small" id="shareCopyBtn">Copy</button>
+        </div>
+        <p class="share-note" id="shareStatus"></p>
+      </div>
+    </section>
+
+    <div class="share-banner" id="shareBanner" hidden>
+      <div>
+        <strong>Shared view (read-only)</strong>
+        <div class="muted" id="shareBannerRange"></div>
+      </div>
+      <button type="button" class="btn primary small" id="sharePrintBtn">Print / Save as PDF</button>
+    </div>
+
+    <section class="summary" aria-live="polite">
+      <div><span id="sumCount">0</span> invoices</div>
+      <div class="admin-only col-amount">Total <strong id="sumTotal">₹0</strong></div>
+      <div class="admin-only"><span id="sumSelected">0</span> selected</div>
+    </section>
+
+    <section class="table-wrap">
+      <table id="invoiceTable">
+        <thead>
+          <tr>
+            <th class="col-check"><input type="checkbox" id="checkAll" aria-label="Select all invoices" /></th>
+            <th>Invoice no.</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>Mobile</th>
+            <th class="num col-hide-sm">Items</th>
+            <th class="num col-amount">Grand total</th>
+            <th class="col-hide-sm">Payment</th>
+            <th class="col-action admin-only"></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <p id="status" class="status" role="status"></p>
+    </section>
+
+    <div class="actionbar admin-only" id="mainActionbar">
+      <button type="button" class="btn" id="printSelected" disabled>Print selected (0)</button>
+      <button type="button" class="btn primary" id="printAll" disabled>Print all listed (0)</button>
+    </div>
+  </div>
+
+  <!-- Sheets for the printer are built here; only visible when printing -->
+  <div id="printArea" aria-hidden="true"></div>
+
+  <!-- Firebase (compat build works from any host, no bundler needed) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-app-compat.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-firestore-compat.min.js"></script>
+  <script>
+/* ABS Crackers World - Invoice Print Center
+ * Reads the same Firestore `invoices` collection as the main admin panel.
+ * Sign-in uses the same Firebase Auth admin accounts. */
+
+(function () {
+  'use strict';
+
+  /* ---------------- Firebase (same project as the main app) ---------------- */
+  var firebaseConfig = {
+    apiKey: 'AIzaSyD0starkwOz4212qlrSu3K_aX-9gPufvf8',
+    authDomain: 'abs-2026.firebaseapp.com',
+    projectId: 'abs-2026',
+    storageBucket: 'abs-2026.firebasestorage.app',
+    messagingSenderId: '94146490712',
+    appId: '1:94146490712:web:178f508710ec2ccc0ab52d'
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  var db = firebase.firestore();
+  var Timestamp = firebase.firestore.Timestamp;
+
+  /* ---------------- Shop details (from invoiceConstants.js) ---------------- */
+  var SHOP = {
+    name: 'ABS CRACKERS WORLD',
+    addressLine1: 'Chinnakamanpatti',
+    addressLine2: 'Sivakasi - 626189, Tamil Nadu.',
+    phone: '+91 9597189599',
+    whatsapp: '+91 9597189599',
+    termsLine: 'Goods once sold will not be taken back or exchanged.',
+    thankYouLine: 'Have a Safe & Prosperous Festival'
+  };
+  var PAYMENT_MODES = [
+    ['CASH', 'Cash'],
+    ['UPI', 'UPI'],
+    ['CARD', 'Card'],
+    ['OTHER', 'Other']
+  ];
+
+  /* ---------------- DOM ---------------- */
+  var $ = function (id) { return document.getElementById(id); };
+  var el = {
+    appView: $('appView'),
+    chips: $('rangeChips'), customRange: $('customRange'), fromDate: $('fromDate'), toDate: $('toDate'), applyRange: $('applyRange'),
+    search: $('search'), sortBy: $('sortBy'), copies: $('copies'), refreshBtn: $('refreshBtn'),
+    sumCount: $('sumCount'), sumTotal: $('sumTotal'), sumSelected: $('sumSelected'),
+    rows: $('rows'), checkAll: $('checkAll'), status: $('status'),
+    printSelected: $('printSelected'), printAll: $('printAll'), printArea: $('printArea'),
+    shareBtn: $('shareBtn'), sharePanel: $('sharePanel'), shareExpiryNum: $('shareExpiryNum'),
+    shareExpiryUnit: $('shareExpiryUnit'), shareCreateBtn: $('shareCreateBtn'),
+    shareLinkRow: $('shareLinkRow'), shareLinkOutput: $('shareLinkOutput'), shareCopyBtn: $('shareCopyBtn'),
+    shareStatus: $('shareStatus'), shareBanner: $('shareBanner'), shareBannerRange: $('shareBannerRange'),
+    sharePrintBtn: $('sharePrintBtn')
+  };
+
+  /* ---------------- State ---------------- */
+  var state = {
+    range: 'custom',     // all | today | yesterday | week | month | custom
+    sort: 'date_asc',    // date_asc | date_desc | amount_desc | amount_asc | name_asc
+    invoices: [],       // loaded from Firestore for the current range
+    visible: [],        // after search filter
+    selected: new Set(),
+    shareMode: false     // true when this page was opened via a ?share= link (read-only, no amounts)
+  };
+
+  /* ---------------- Helpers ---------------- */
+  function esc(v) {
+    return String(v == null ? '' : v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function money(n) { return '\u20B9' + Number(n || 0).toLocaleString('en-IN'); }
+  function toDate(ts) {
+    if (!ts) return null;
+    if (typeof ts.toDate === 'function') return ts.toDate();
+    var d = new Date(ts);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function invDate(inv) { return toDate(inv.date) || toDate(inv.createdAt); }
+  function fmtDate(d) {
+    return d ? d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+  }
+  function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0); }
+  function endOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999); }
+  function inputValue(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function parseInput(v) {
+    if (!v) return null;
+    var p = v.split('-').map(Number);
+    return new Date(p[0], p[1] - 1, p[2]);
+  }
+
+  function getRange() {
+    var now = new Date();
+    switch (state.range) {
+      case 'today':
+        return { start: startOfDay(now), end: endOfDay(now) };
+      case 'yesterday':
+        var y = new Date(now); y.setDate(y.getDate() - 1);
+        return { start: startOfDay(y), end: endOfDay(y) };
+      case 'week':
+        var w = new Date(now); w.setDate(w.getDate() - 6);
+        return { start: startOfDay(w), end: endOfDay(now) };
+      case 'month':
+        return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: endOfDay(now) };
+      case 'custom':
+        var f = parseInput(el.fromDate.value);
+        var t = parseInput(el.toDate.value);
+        if (!f && !t) return null;
+        return { start: startOfDay(f || t), end: endOfDay(t || f) };
+      default:
+        return null; // all
+    }
+  }
+
+  function setStatus(msg) { el.status.textContent = msg || ''; }
+
+  /* ---------------- Load from Firestore ---------------- */
+  var loadToken = 0;
+
+  function loadInvoices() {
+    var token = ++loadToken;
+    var range = getRange();
+    var isCustomEmpty = state.range === 'custom' && !range;
+
+    if (isCustomEmpty) {
+      state.invoices = [];
+      state.selected.clear();
+      renderList();
+      setStatus('Pick a From and To date, then press Show invoices.');
+      return;
+    }
+
+    setStatus('Loading invoices...');
+    el.rows.innerHTML = '';
+
+    var q = db.collection('invoices');
+    if (range) {
+      q = q.where('createdAt', '>=', Timestamp.fromDate(range.start))
+           .where('createdAt', '<=', Timestamp.fromDate(range.end));
+    }
+    q = q.orderBy('createdAt', 'desc');
+
+    q.get().then(function (snap) {
+      if (token !== loadToken) return; // a newer request replaced this one
+      state.invoices = snap.docs.map(function (d) {
+        var data = d.data();
+        data.id = d.id;
+        return data;
+      });
+      state.selected.clear();
+      renderList();
+    }).catch(function (err) {
+      if (token !== loadToken) return;
+      console.error('Failed to load invoices', err);
+      state.invoices = [];
+      renderList();
+      setStatus(
+        err && err.code === 'permission-denied'
+          ? 'Firestore refused access. Sign in with an admin account that is allowed to read invoices.'
+          : 'Could not load invoices. Check your connection and press Refresh.'
+      );
+    });
+  }
+
+  /* ---------------- List rendering ---------------- */
+  function applySearch() {
+    var term = el.search.value.trim().toLowerCase();
+    state.visible = state.invoices.filter(function (inv) {
+      if (!term) return true;
+      return [inv.invoiceNo, inv.orderId, inv.customer && inv.customer.name, inv.customer && inv.customer.mobile]
+        .filter(Boolean).join(' ').toLowerCase().indexOf(term) !== -1;
+    });
+    sortVisible();
+  }
+
+  function sortVisible() {
+    var list = state.visible;
+    switch (state.sort) {
+      case 'date_desc':
+        list.sort(function (a, b) { return (invDate(b) || 0) - (invDate(a) || 0); });
+        break;
+      case 'amount_desc':
+        list.sort(function (a, b) { return Number(b.grandTotal || 0) - Number(a.grandTotal || 0); });
+        break;
+      case 'amount_asc':
+        list.sort(function (a, b) { return Number(a.grandTotal || 0) - Number(b.grandTotal || 0); });
+        break;
+      case 'name_asc':
+        list.sort(function (a, b) {
+          var an = ((a.customer && a.customer.name) || '').toLowerCase();
+          var bn = ((b.customer && b.customer.name) || '').toLowerCase();
+          return an < bn ? -1 : an > bn ? 1 : 0;
+        });
+        break;
+      case 'date_asc':
+      default:
+        list.sort(function (a, b) { return (invDate(a) || 0) - (invDate(b) || 0); });
+        break;
+    }
+  }
+
+  function renderList() {
+    applySearch();
+    var list = state.visible;
+    var mobileCounts = {};
+    list.forEach(function (inv) {
+      var m = (inv.customer && inv.customer.mobile || '').trim();
+      if (m) mobileCounts[m] = (mobileCounts[m] || 0) + 1;
+    });
+
+    // Collapse invoices that share a mobile number into ONE table row with
+    // ONE Print button. They print as a single combined sheet anyway, so
+    // showing them as separate rows let the packing team click Print twice
+    // and get the same items printed twice - one row per group prevents that.
+    var seenMobile = {};
+    var rows = [];
+    list.forEach(function (inv) {
+      var mobile = ((inv.customer && inv.customer.mobile) || '').trim();
+      var isDup = mobile && mobileCounts[mobile] > 1;
+      if (isDup) {
+        if (seenMobile[mobile]) return; // this group's row was already added
+        seenMobile[mobile] = true;
+        var group = list.filter(function (i) { return ((i.customer && i.customer.mobile) || '').trim() === mobile; });
+        rows.push({ mobile: mobile, invoices: group, isDup: true });
+      } else {
+        rows.push({ mobile: mobile, invoices: [inv], isDup: false });
+      }
+    });
+
+    el.rows.innerHTML = rows.map(function (row) {
+      var invoices = row.invoices;
+      var first = invoices[0];
+      var c = first.customer || {};
+      var ids = invoices.map(function (i) { return i.id; });
+      var allChecked = ids.every(function (id) { return state.selected.has(id); });
+      var rowClass = [allChecked ? 'selected' : '', row.isDup ? 'dup-mobile' : ''].filter(Boolean).join(' ');
+      var invoiceNosRaw = invoices.map(function (i) { return i.invoiceNo || '-'; });
+      var invoiceNoCell = invoiceNosRaw.map(esc).join(', ');
+      var totalItems = invoices.reduce(function (s, i) { return s + (i.items || []).length; }, 0);
+      var totalAmount = invoices.reduce(function (s, i) { return s + Number(i.grandTotal || 0); }, 0);
+      var payment = invoices.length > 1 ? 'MULTI' : (first.paymentMode || '-');
+      return '<tr data-ids="' + esc(ids.join(',')) + '"' + (rowClass ? ' class="' + rowClass + '"' : '') + '>' +
+        '<td class="col-check"><input type="checkbox" class="rowcheck" aria-label="Select ' + esc(invoiceNosRaw.join(', ')) + '"' + (allChecked ? ' checked' : '') + '></td>' +
+        '<td><strong>' + invoiceNoCell + '</strong></td>' +
+        '<td>' + esc(fmtDate(invDate(first))) + '</td>' +
+        '<td class="cust">' + esc(c.name || '-') + '</td>' +
+        '<td>' + esc(row.mobile || '-') + (row.isDup ? ' <span class="tag dup-tag" title="Same number - ' + invoices.length + ' invoices merge into one printed sheet">' + invoices.length + '\u00d7</span>' : '') + '</td>' +
+        '<td class="num col-hide-sm">' + totalItems + '</td>' +
+        '<td class="num col-amount"><strong>' + money(totalAmount) + '</strong></td>' +
+        '<td class="col-hide-sm"><span class="tag">' + esc(payment) + '</span></td>' +
+        '<td class="col-action admin-only"><button type="button" class="btn small rowprint">Print</button></td>' +
+        '</tr>';
+    }).join('');
+
+    var total = list.reduce(function (s, inv) { return s + Number(inv.grandTotal || 0); }, 0);
+    el.sumCount.textContent = list.length;
+    el.sumTotal.textContent = money(total);
+
+    if (!list.length && !el.status.textContent.match(/^(Loading|Could not|Firestore|Pick)/)) {
+      setStatus(state.invoices.length ? 'No invoices match your search.' : 'No invoices found for this date range.');
+    } else if (list.length) {
+      setStatus('');
+    }
+    updateSelectionUI();
+  }
+
+  function updateSelectionUI() {
+    var visibleIds = state.visible.map(function (i) { return i.id; });
+    var selectedVisible = visibleIds.filter(function (id) { return state.selected.has(id); });
+
+    el.sumSelected.textContent = selectedVisible.length;
+    el.printSelected.textContent = 'Print selected (' + selectedVisible.length + ')';
+    el.printSelected.disabled = selectedVisible.length === 0;
+    el.printAll.textContent = 'Print all listed (' + visibleIds.length + ')';
+    el.printAll.disabled = visibleIds.length === 0;
+
+    el.checkAll.checked = visibleIds.length > 0 && selectedVisible.length === visibleIds.length;
+    el.checkAll.indeterminate = selectedVisible.length > 0 && selectedVisible.length < visibleIds.length;
+  }
+
+  /* ---------------- Events: filters ---------------- */
+  function syncChips() {
+    Array.prototype.forEach.call(el.chips.querySelectorAll('.chip'), function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.range === state.range));
+    });
+    el.customRange.hidden = state.range !== 'custom';
+  }
+
+  /* Share the current view: whoever opens this exact link (with its
+     ?range=/from=/to=/sort=/q= query string) sees the same filtered,
+     sorted list - useful for sharing a fixed custom date range. */
+  function writeUrlState() {
+    var params = new URLSearchParams();
+    params.set('range', state.range);
+    if (state.range === 'custom') {
+      if (el.fromDate.value) params.set('from', el.fromDate.value);
+      if (el.toDate.value) params.set('to', el.toDate.value);
+    }
+    if (state.sort && state.sort !== 'date_asc') params.set('sort', state.sort);
+    if (el.search.value.trim()) params.set('q', el.search.value.trim());
+    var qs = params.toString();
+    var url = location.pathname + (qs ? '?' + qs : '');
+    history.replaceState(null, '', url);
+  }
+
+  function readUrlState() {
+    var params = new URLSearchParams(location.search);
+    var range = params.get('range');
+    if (range) state.range = range;
+    if (range === 'custom') {
+      if (params.get('from')) el.fromDate.value = params.get('from');
+      if (params.get('to')) el.toDate.value = params.get('to');
+    }
+    var sort = params.get('sort');
+    if (sort) { state.sort = sort; el.sortBy.value = sort; }
+    var q = params.get('q');
+    if (q) el.search.value = q;
+  }
+
+  /* ---------------- Share links ---------------- */
+  /* A share link stores its own fixed date range + expiry in a `shareLinks`
+     doc (not just the URL) so it can be checked and expired server-side
+     later. Right now this file has no sign-in check of its own (see the
+     init comment below) - if/when Firestore rules are tightened, the
+     `shareLinks` collection needs the same public-read treatment as
+     `invoices` for these links to keep working for visitors who are not
+     signed in as admins. */
+  function genShareToken() {
+    var bytes = new Uint8Array(16);
+    (window.crypto || window.msCrypto).getRandomValues(bytes);
+    return Array.prototype.map.call(bytes, function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+  }
+
+  el.shareBtn.addEventListener('click', function () {
+    el.sharePanel.hidden = !el.sharePanel.hidden;
+  });
+
+  el.shareCreateBtn.addEventListener('click', function () {
+    var bounds = getRange();
+    if (!bounds) {
+      el.shareStatus.textContent = 'Pick a date range first (use a chip or "Pick dates" above), then create the link.';
+      return;
+    }
+    var num = Number(el.shareExpiryNum.value);
+    if (!num || num <= 0) {
+      el.shareStatus.textContent = 'Enter how many hours or days the link should stay active.';
+      return;
+    }
+    var ms = (el.shareExpiryUnit.value === 'days' ? num * 24 * 60 * 60 * 1000 : num * 60 * 60 * 1000);
+    var expiresAt = new Date(Date.now() + ms);
+    var token = genShareToken();
+
+    el.shareStatus.textContent = 'Creating link...';
+    el.shareCreateBtn.disabled = true;
+
+    db.collection('shareLinks').doc(token).set({
+      from: Timestamp.fromDate(bounds.start),
+      to: Timestamp.fromDate(bounds.end),
+      sort: state.sort,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      expiresAt: Timestamp.fromDate(expiresAt)
+    }).then(function () {
+      var url = location.origin + location.pathname + '?share=' + token;
+      el.shareLinkOutput.value = url;
+      el.shareLinkRow.hidden = false;
+      el.shareStatus.textContent = 'Link active until ' +
+        expiresAt.toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) +
+        '. Amounts are hidden on this link - only invoice details are shown.';
+    }).catch(function (err) {
+      el.shareStatus.textContent = 'Could not create the link: ' + (err && err.message ? err.message : err);
+    }).then(function () {
+      el.shareCreateBtn.disabled = false;
+    });
+  });
+
+  el.shareCopyBtn.addEventListener('click', function () {
+    el.shareLinkOutput.select();
+    var done = function () { el.shareStatus.textContent = 'Copied to clipboard.'; };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(el.shareLinkOutput.value).then(done).catch(function () {
+        document.execCommand('copy'); done();
+      });
+    } else {
+      document.execCommand('copy'); done();
+    }
+  });
+
+  function enterShareMode(token) {
+    state.shareMode = true;
+    document.body.classList.add('share-mode');
+    el.shareBanner.hidden = false;
+    setStatus('Loading shared list...');
+
+    db.collection('shareLinks').doc(token).get().then(function (doc) {
+      if (!doc.exists) {
+        setStatus('This link is invalid or has been removed.');
+        el.shareBannerRange.textContent = 'Link not found.';
+        return;
+      }
+      var d = doc.data();
+      var expiresAt = toDate(d.expiresAt);
+      if (expiresAt && expiresAt.getTime() < Date.now()) {
+        setStatus('This link has expired.');
+        el.shareBannerRange.textContent = 'Expired on ' +
+          expiresAt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) + '.';
+        return;
+      }
+      var start = toDate(d.from), end = toDate(d.to);
+      state.range = 'custom';
+      if (start) el.fromDate.value = inputValue(start);
+      if (end) el.toDate.value = inputValue(end);
+      if (d.sort) { state.sort = d.sort; el.sortBy.value = d.sort; }
+      el.shareBannerRange.textContent = (start ? fmtDate(start) : '?') + ' to ' + (end ? fmtDate(end) : '?') +
+        (expiresAt ? ' \u2022 link active until ' +
+          expiresAt.toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
+      loadInvoices();
+    }).catch(function (err) {
+      setStatus('Could not load the shared list: ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  el.sharePrintBtn.addEventListener('click', function () {
+    var groups = groupByMobile(state.visible);
+    var rows = groups.map(function (group, i) {
+      var invoices = group.invoices;
+      var c = invoices[0].customer || {};
+      var invoiceNos = invoices.map(function (inv) { return inv.invoiceNo || '-'; }).join(', ');
+      var dateLabel = invoices.length > 1
+        ? invoices.map(function (inv) { return fmtDate(invDate(inv)); }).join(', ')
+        : fmtDate(invDate(invoices[0]));
+      var itemCount = invoices.reduce(function (s, inv) { return s + ((inv.items || []).length); }, 0);
+      return '<tr>' +
+        '<td>' + (i + 1) + '</td>' +
+        '<td>' + esc(invoiceNos) + '</td>' +
+        '<td>' + esc(dateLabel) + '</td>' +
+        '<td>' + esc(c.name || '-') + '</td>' +
+        '<td>' + esc(group.mobile || c.mobile || '-') + '</td>' +
+        '<td>' + itemCount + '</td>' +
+        '</tr>';
+    }).join('');
+    var html = '<div style="padding:10mm;font-family:Arial,sans-serif;">' +
+      '<h2 style="margin:0 0 2mm;">' + esc(SHOP.name) + ' - Invoice List</h2>' +
+      '<div style="margin-bottom:4mm;color:#555;font-size:12px;">' + esc(el.shareBannerRange.textContent) + '</div>' +
+      '<table style="width:100%;border-collapse:collapse;font-size:11px;">' +
+      '<thead><tr style="border-bottom:1px solid #000;text-align:left;">' +
+      '<th style="padding:2mm;">S.No</th><th style="padding:2mm;">Invoice no.</th><th style="padding:2mm;">Date</th>' +
+      '<th style="padding:2mm;">Customer</th><th style="padding:2mm;">Mobile</th><th style="padding:2mm;">Items</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+    el.printArea.innerHTML = html;
+    document.title = 'Invoice List';
+    window.print();
+  });
+
+  el.chips.addEventListener('click', function (e) {
+    var btn = e.target.closest('.chip');
+    if (!btn) return;
+    state.range = btn.dataset.range;
+    if (state.range === 'custom' && !el.fromDate.value) {
+      var today = inputValue(new Date());
+      el.fromDate.value = today;
+      el.toDate.value = today;
+    }
+    syncChips();
+    loadInvoices();
+    writeUrlState();
+  });
+
+  el.applyRange.addEventListener('click', function () {
+    if (el.fromDate.value && el.toDate.value && el.fromDate.value > el.toDate.value) {
+      var tmp = el.fromDate.value; el.fromDate.value = el.toDate.value; el.toDate.value = tmp;
+    }
+    loadInvoices();
+    writeUrlState();
+  });
+
+  el.refreshBtn.addEventListener('click', loadInvoices);
+  el.search.addEventListener('input', function () { renderList(); writeUrlState(); });
+  el.sortBy.addEventListener('change', function () {
+    state.sort = el.sortBy.value;
+    renderList();
+    writeUrlState();
+  });
+
+  /* ---------------- Events: selection + row print ---------------- */
+  el.checkAll.addEventListener('change', function () {
+    state.visible.forEach(function (inv) {
+      if (el.checkAll.checked) state.selected.add(inv.id); else state.selected.delete(inv.id);
+    });
+    renderList();
+  });
+
+  el.rows.addEventListener('change', function (e) {
+    if (!e.target.classList.contains('rowcheck')) return;
+    var tr = e.target.closest('tr');
+    var ids = tr.dataset.ids.split(',');
+    ids.forEach(function (id) {
+      if (e.target.checked) state.selected.add(id); else state.selected.delete(id);
+    });
+    tr.classList.toggle('selected', e.target.checked);
+    updateSelectionUI();
+  });
+
+  el.rows.addEventListener('click', function (e) {
+    var btn = e.target.closest('.rowprint');
+    if (!btn) return;
+    // A row now represents one invoice, or a whole same-mobile group merged
+    // into one row - either way its ids print together as one sheet, with
+    // no second Print button left anywhere that could reprint the same items.
+    var ids = btn.closest('tr').dataset.ids.split(',');
+    var group = state.invoices.filter(function (i) { return ids.indexOf(i.id) !== -1; });
+    if (!group.length) return;
+    printInvoices(group);
+  });
+
+  el.printSelected.addEventListener('click', function () {
+    var list = state.visible.filter(function (i) { return state.selected.has(i.id); });
+    printInvoices(list);
+  });
+
+  el.printAll.addEventListener('click', function () {
+    if (state.visible.length > 100 &&
+        !confirm('You are about to print ' + state.visible.length + ' invoices. Continue?')) return;
+    printInvoices(state.visible);
+  });
+
+  /* ---------------- Invoice sheet (mirrors the PDF layout) ---------------- */
+  var ITEMS_TABLE_HEAD = '<thead><tr><th>S.No</th><th>Description of Crackers</th><th>Qty</th><th>Packed</th></tr></thead>';
+  var SPLIT_THRESHOLD = 9; // lists longer than this get split left/right on the same sheet
+
+  /* Word-by-word Tamil-script transliteration (not meaning-translation) of
+     common cracker-name words, for the packing checklist only. Unknown
+     words are left in English rather than guessed - safer than a wrong
+     translation. Extend this list as new product words come up. */
+  var TAMIL_WORDS = {
+    ELECTRIC: '\u0b8e\u0bb2\u0bc6\u0b95\u0bcd\u0b9f\u0bcd\u0bb0\u0bbf\u0b95\u0bcd', SPARKLERS: '\u0b8f\u0bc1\u0bb8\u0bcd\u0baa\u0bbe\u0bb0\u0bcd\u0b95\u0bcd', SPARK: '\u0b8f\u0bc1\u0bb8\u0bcd\u0baa\u0bbe\u0bb0\u0bcd\u0b95\u0bcd',
+    CRACKLING: '\u0b95\u0bbf\u0bb0\u0bbe\u0b95\u0bcd\u0bb2\u0bbf\u0b99\u0bcd', CHAKKARAM: '\u0b9a\u0b95\u0bcd\u0b95\u0bb0\u0bae\u0bcd',
+    BIG: '\u0baa\u0bbf\u0b95\u0bcd', SPECIAL: '\u0bb8\u0bcd\u0baa\u0bc6\u0bb7\u0bb2\u0bcd',
+    DELUXE: '\u0b9f\u0bc0\u0bb2\u0b95\u0bcd\u0bb8\u0bcd', DLX: '\u0b9f\u0bc0\u0bb2\u0b95\u0bcd\u0bb8\u0bcd',
+    FLOWER: '\u0baa\u0bcd\u0bb2\u0bb5\u0bb0\u0bcd', POT: '\u0baa\u0bbe\u0b9f\u0bcd',
+    COLOR: '\u0b95\u0bb2\u0bb0\u0bcd', COLOUR: '\u0b95\u0bb2\u0bb0\u0bcd', KOTI: '\u0b95\u0bcb\u0b9f\u0bbf',
+    TWINKLING: '\u0b9f\u0bcd\u0bb5\u0bbf\u0b99\u0bcd\u0b95\u0bcd\u0bb2\u0bbf\u0b99\u0bcd', STAR: '\u0bb8\u0bcd\u0b9f\u0bbe\u0bb0\u0bcd',
+    LAKSHMI: '\u0bb2\u0b9f\u0bcd\u0b9a\u0bc1\u0bae\u0bbf', LION: '\u0bb2\u0baf\u0ba9\u0bcd', HULK: '\u0bb9\u0bb2\u0bcd\u0b95\u0bcd',
+    GOLD: '\u0b95\u0bcb\u0bb2\u0bcd\u0b9f\u0bcd', SILVER: '\u0b9a\u0bbf\u0bb2\u0bcd\u0bb5\u0bb0\u0bcd',
+    SKY: '\u0bb8\u0bcd\u0b95\u0bc8', SHOT: '\u0bb7\u0bbe\u0b9f\u0bcd', MULTI: '\u0bae\u0bb2\u0bcd\u0b9f\u0bbf',
+    KITKAT: '\u0b95\u0bbf\u0b9f\u0bcd\u0b95\u0bbe\u0b9f\u0bcd', PENTA: '\u0baa\u0bc6\u0ba9\u0bcd\u0b9f\u0bbe', FANCY: '\u0bab\u0bc6\u0ba9\u0bcd\u0b9a\u0bbf',
+    GREEN: '\u0b95\u0bbf\u0bb0\u0bc0\u0ba9\u0bcd', RED: '\u0bb0\u0bc6\u0b9f\u0bcd',
+    ARIAL: '\u0b8f\u0bb0\u0bbf\u0baf\u0bb2\u0bcd', AERIAL: '\u0b8f\u0bb0\u0bbf\u0baf\u0bb2\u0bcd',
+    RAINBOW: '\u0bb0\u0bc6\u0baf\u0bbf\u0ba9\u0bcd\u0baa\u0bcb', SMOKE: '\u0bb8\u0bcd\u0bae\u0bcb\u0b95\u0bcd',
+    PAPER: '\u0baa\u0bc7\u0baa\u0bcd\u0baa\u0bb0\u0bcd', BOMB: '\u0baa\u0bbe\u0bae\u0bcd\u0baa\u0bcd', ROCKET: '\u0bb0\u0bbe\u0b95\u0bc6\u0b9f\u0bcd',
+    GUN: '\u0b95\u0ba9\u0bcd', OUT: '\u0b85\u0bb5\u0bc1\u0b9f\u0bcd', ULTRA: '\u0b85\u0bb2\u0bcd\u0b9f\u0bcd\u0bb0\u0bbe', SOUND: '\u0b9a\u0bb5\u0bc1\u0ba3\u0bcd\u0b9f\u0bcd',
+    PREMIUM: '\u0baa\u0bbf\u0bb0\u0bc0\u0bae\u0bbf\u0baf\u0bae\u0bcd',
+    DANCING: '\u0b9f\u0bbe\u0ba9\u0bcd\u0b9a\u0bbf\u0b99\u0bcd', BAMBARAM: '\u0baa\u0bae\u0bcd\u0baa\u0bb0\u0bae\u0bcd',
+    BINGO: '\u0baa\u0bbf\u0b99\u0bcd\u0b95\u0bcb', SHOWER: '\u0bb7\u0bb5\u0bb0\u0bcd',
+    TIN: '\u0b9f\u0bbf\u0ba9\u0bcd', BEER: '\u0baa\u0bbf\u0baf\u0bb0\u0bcd',
+    MAYAJAAL: '\u0bae\u0bbe\u0baf\u0bbe\u0b9c\u0bbe\u0bb2\u0bcd', PEACOCK: '\u0baa\u0bc0\u0b95\u0bbe\u0b95\u0bcd', MOON: '\u0bae\u0bc2\u0ba9\u0bcd',
+    PHOTO: '\u0baa\u0bcb\u0b9f\u0bcb', FLASH: '\u0baa\u0bcd\u0bb3\u0bbe\u0bb7\u0bcd', COCKFIGHT: '\u0b95\u0bbe\u0b95\u0bcd \u0baf\u0bc1\u0ba4\u0bcd\u0ba4\u0bae\u0bcd',
+    WATER: '\u0bb5\u0bbe\u0b9f\u0bcd\u0b9f\u0bb0\u0bcd', QUEEN: '\u0b95\u0bcd\u0bb5\u0bc0\u0ba9\u0bcd', COLD: '\u0b95\u0bcb\u0bb2\u0bcd\u0b9f\u0bcd', PYRO: '\u0baa\u0bc8\u0bb0\u0bcb',
+    BADA: '\u0baa\u0bbe\u0b9f\u0bbe', MEGA: '\u0bae\u0bc7\u0b95\u0bbe', VEL: '\u0bb5\u0bc7\u0bb2\u0bcd',
+    ELEPHANT: '\u0baf\u0bbe\u0ba9\u0bc8', JOKER: '\u0b9c\u0bcb\u0b95\u0bcd\u0b95\u0bb0\u0bcd',
+    WONDERS: '\u0bb5\u0bc1\u0ba3\u0bcd\u0b9f\u0bb0\u0bcd\u0bb8\u0bcd', FOUNTAIN: '\u0baa\u0bc7\u0bb5\u0bc1\u0ba3\u0bcd\u0b9f\u0ba9\u0bcd',
+    BRAND: '\u0baa\u0bbf\u0bb0\u0bbe\u0ba9\u0bcd\u0b9f\u0bcd', PACK: '\u0baa\u0bbe\u0b95\u0bcd'
+  };
+
+  /* Generic English->Tamil-script sound-alike converter, used as a fallback
+     for any product word that isn't in TAMIL_WORDS above. It is a best-guess
+     phonetic rendering (not meaning-translation) built from spelling rules,
+     so it can be slightly off for tricky words - TAMIL_WORDS entries always
+     win over this and are the accurate ones. Add a word to TAMIL_WORDS any
+     time this fallback gets a name wrong. */
+  function transliterateWordGeneric(word) {
+    var w = word.toUpperCase();
+    var i = 0, n = w.length, out = '';
+    var pendingCons = [];
+    var VOWELS = 'AEIOU';
+    var CONS_MAP = {
+      B: '\u0baa', C: '\u0b95', D: '\u0b9f', F: '\u0baa', G: '\u0b95', H: '\u0bb9', J: '\u0b9c',
+      K: '\u0b95', L: '\u0bb2', M: '\u0bae', N: '\u0ba8', P: '\u0baa', Q: '\u0b95', R: '\u0bb0',
+      S: '\u0bb8', T: '\u0b9f', V: '\u0bb5', W: '\u0bb5', X: '\u0b95\u0bcd\u0bb8', Y: '\u0baf', Z: '\u0bb8'
+    };
+    var DIGRAPHS = [
+      ['TCH', '\u0b9a'], ['CK', '\u0b95'], ['SH', '\u0bb7'], ['CH', '\u0b9a'],
+      ['TH', '\u0ba4'], ['PH', '\u0baa'], ['NG', '\u0b99'], ['QU', '\u0b95\u0bcd\u0bb5']
+    ];
+    var VOWEL_DIGRAPHS = {
+      AI: { ind: '\u0b90', sign: '\u0bc8' }, AY: { ind: '\u0b90', sign: '\u0bc8' },
+      OU: { ind: '\u0b94', sign: '\u0bcc' }, OW: { ind: '\u0b94', sign: '\u0bcc' },
+      EA: { ind: '\u0b8f', sign: '\u0bc7' }, IE: { ind: '\u0b88', sign: '\u0bc0' },
+      OO: { ind: '\u0b8a', sign: '\u0bc2' }, EE: { ind: '\u0b88', sign: '\u0bc0' }
+    };
+    var IND_SHORT = { A: '\u0b85', E: '\u0b8e', I: '\u0b87', O: '\u0b92', U: '\u0b89' };
+    var IND_LONG  = { A: '\u0b86', E: '\u0b8f', I: '\u0b88', O: '\u0b93', U: '\u0b8a' };
+    var SIGN_SHORT = { A: '', E: '\u0bc6', I: '\u0bbf', O: '\u0bca', U: '\u0bc1' };
+    var SIGN_LONG  = { A: '\u0bbe', E: '\u0bc7', I: '\u0bc0', O: '\u0bcb', U: '\u0bc2' };
+
+    function emitVowel(ind, sign) {
+      if (pendingCons.length) {
+        var last = pendingCons.pop();
+        pendingCons.forEach(function (c) { out += c + '\u0BCD'; });
+        pendingCons = [];
+        out += last + (sign || '');
+      } else {
+        out += ind;
+      }
+    }
+
+    while (i < n) {
+      var ch = w[i];
+      var pair = w.substr(i, 2);
+
+      if (VOWEL_DIGRAPHS[pair]) {
+        var vd = VOWEL_DIGRAPHS[pair];
+        emitVowel(vd.ind, vd.sign);
+        i += 2;
+        continue;
+      }
+
+      if (VOWELS.indexOf(ch) === -1 && ch !== 'Y') {
+        var matched = null;
+        for (var d = 0; d < DIGRAPHS.length; d++) {
+          if (w.substr(i, DIGRAPHS[d][0].length) === DIGRAPHS[d][0]) { matched = DIGRAPHS[d]; break; }
+        }
+        if (matched) { pendingCons.push(matched[1]); i += matched[0].length; }
+        else if (CONS_MAP[ch]) { pendingCons.push(CONS_MAP[ch]); i += 1; }
+        else { i += 1; }
+        continue;
+      }
+
+      if (ch === 'Y') {
+        var next = w[i + 1];
+        if (next && VOWELS.indexOf(next) !== -1) { pendingCons.push('\u0baf'); i += 1; continue; }
+        ch = 'I';
+      }
+
+      var isLong = false, consumed = 1, vChar = ch;
+      if (w[i + 1] === ch && VOWELS.indexOf(ch) !== -1) { isLong = true; consumed = 2; }
+      emitVowel(isLong ? IND_LONG[vChar] : IND_SHORT[vChar], isLong ? SIGN_LONG[vChar] : SIGN_SHORT[vChar]);
+      i += consumed;
+    }
+
+    pendingCons.forEach(function (c) { out += c + '\u0BCD'; });
+    return out;
+  }
+
+  function transliterateDesc(desc) {
+    if (!desc) return '';
+    var tokens = String(desc).split(/(\s+)/);
+    var hitAny = false;
+    var out = tokens.map(function (tok) {
+      if (/^\s+$/.test(tok)) return tok;
+      var m = tok.match(/^([^A-Za-z]*)([A-Za-z]+)([^A-Za-z]*)$/);
+      if (!m) return tok; // pure numbers/punctuation - pass through unchanged
+      var word = m[2].toUpperCase();
+      var ta = TAMIL_WORDS[word] || transliterateWordGeneric(word);
+      if (!ta) return tok;
+      hitAny = true;
+      return m[1] + ta + m[3];
+    });
+    return hitAny ? out.join('') : ''; // nothing recognizable - skip the Tamil line entirely
+  }
+
+  function itemRowHtml(it, sNo) {
+    var ta = transliterateDesc(it.description);
+    var desc = esc(it.description) + (ta ? '<span class="desc-ta">' + esc(ta) + '</span>' : '');
+    return '<tr>' +
+      '<td>' + sNo + '</td>' +
+      '<td>' + desc + '</td>' +
+      '<td class="qty">' + esc(it.qty) + '</td>' +
+      '<td class="packed"><span class="packbox"></span></td></tr>';
+  }
+
+  function itemsTableHtml(items, startAt) {
+    var rows = items.map(function (it, i) { return itemRowHtml(it, startAt + i + 1); }).join('');
+    return '<table class="items">' + ITEMS_TABLE_HEAD + '<tbody>' + rows + '</tbody></table>';
+  }
+
+  // For a long list, split it left/right on the same sheet instead of
+  // spilling onto extra pages - big paper saver for 15-20 item orders.
+  function itemsBlockHtml(items) {
+    if (items.length <= SPLIT_THRESHOLD) return itemsTableHtml(items, 0);
+    var half = Math.ceil(items.length / 2);
+    var left = items.slice(0, half);
+    var right = items.slice(half);
+    return '<div class="items-cols">' +
+      '<div class="col">' + itemsTableHtml(left, 0) + '</div>' +
+      '<div class="col">' + itemsTableHtml(right, half) + '</div>' +
+    '</div>';
+  }
+
+  function sheetHtml(inv, copyLabel) {
+    var c = inv.customer || {};
+    var items = inv.items || [];
+
+    return '' +
+    '<section class="sheet">' +
+      (copyLabel ? '<div class="copy-label">' + esc(copyLabel) + '</div>' : '') +
+      '<div class="sheet-head">' +
+        '<div class="brandname">' + esc(SHOP.name) + '</div>' +
+        '<div class="tagline">' + esc(SHOP.addressLine1) + ', ' + esc(SHOP.addressLine2) + '</div>' +
+      '</div>' +
+      '<div class="banner-wrap"><span class="banner">PACKING CHECKLIST</span></div>' +
+      '<div class="meta"><div><div>Invoice No.: ' + esc(inv.invoiceNo || '-') + '</div>' +
+        (inv.orderId ? '<div class="ref">Order Ref: ' + esc(inv.orderId) + '</div>' : '') + '</div>' +
+        '<div>Date: ' + esc(fmtDate(invDate(inv))) + '</div></div>' +
+      '<div class="cust-box">' +
+        '<div class="row"><span>' + esc(c.name || '-') + '</span><span>' + esc(c.mobile || '-') + '</span></div>' +
+        '<div class="addr">' + esc(c.address || '-') + '</div>' +
+      '</div>' +
+      itemsBlockHtml(items) +
+      '<div class="chk-foot"><span>Total Items: ' + items.length + '</span><span>Grand Total: ' + money(inv.grandTotal) + '</span></div>' +
+    '</section>';
+  }
+
+  /* ---------------- Merge orders sharing one mobile number ---------------- */
+  function groupByMobile(list) {
+    var groups = [];
+    var index = {};
+    list.forEach(function (inv) {
+      var mobile = ((inv.customer && inv.customer.mobile) || '').trim();
+      var key = mobile || ('__single__' + inv.id);
+      if (!index.hasOwnProperty(key)) {
+        index[key] = groups.length;
+        groups.push({ mobile: mobile, invoices: [] });
+      }
+      groups[index[key]].invoices.push(inv);
+    });
+    return groups;
+  }
+
+  function mergedSheetHtml(group, copyLabel) {
+    var invoices = group.invoices;
+    var c = invoices[0].customer || {};
+    var invoiceNos = invoices.map(function (inv) { return inv.invoiceNo || '-'; });
+
+    // One flat, continuously-numbered item list across all merged invoices
+    // (no per-invoice subheads) - the invoice numbers are only mentioned
+    // once, in the "Combined" line below. Long lists still split left/right
+    // on the same sheet via itemsBlockHtml, same as a single-invoice sheet.
+    var allItems = [];
+    invoices.forEach(function (inv) {
+      (inv.items || []).forEach(function (it) { allItems.push(it); });
+    });
+
+    var grand = invoices.reduce(function (s, inv) { return s + Number(inv.grandTotal || 0); }, 0);
+
+    return '' +
+    '<section class="sheet">' +
+      (copyLabel ? '<div class="copy-label">' + esc(copyLabel) + '</div>' : '') +
+      '<div class="sheet-head">' +
+        '<div class="brandname">' + esc(SHOP.name) + '</div>' +
+        '<div class="tagline">' + esc(SHOP.addressLine1) + ', ' + esc(SHOP.addressLine2) + '</div>' +
+      '</div>' +
+      '<div class="banner-wrap"><span class="banner">PACKING CHECKLIST</span></div>' +
+      '<div class="merge-note">Combined \u2014 ' + esc(invoiceNos.join(', ')) + '</div>' +
+      '<div class="cust-box">' +
+        '<div class="row"><span>' + esc(c.name || '-') + '</span><span>' + esc(group.mobile || '-') + '</span></div>' +
+        '<div class="addr">' + esc(c.address || '-') + '</div>' +
+      '</div>' +
+      itemsBlockHtml(allItems) +
+      '<div class="chk-foot"><span>Total Items: ' + allItems.length + '</span><span>Grand Total: ' + money(grand) + '</span></div>' +
+    '</section>';
+  }
+
+  /* ---------------- Print ---------------- */
+  var originalTitle = document.title;
+
+  function printInvoices(list) {
+    if (!list.length) return;
+    var twoCopies = el.copies.value === '2';
+    var groups = groupByMobile(list);
+
+    var sheets = [];
+    groups.forEach(function (group) {
+      var isMerged = group.invoices.length > 1;
+      if (twoCopies) {
+        sheets.push(isMerged ? mergedSheetHtml(group, 'Customer Copy') : sheetHtml(group.invoices[0], 'Customer Copy'));
+        sheets.push(isMerged ? mergedSheetHtml(group, 'Office Copy') : sheetHtml(group.invoices[0], 'Office Copy'));
+      } else {
+        sheets.push(isMerged ? mergedSheetHtml(group, '') : sheetHtml(group.invoices[0], ''));
+      }
+    });
+
+    var html = sheets.join('');
+
+    el.printArea.innerHTML = html;
+
+    // The browser suggests this as the file name when saving as PDF.
+    document.title = list.length === 1 ? (list[0].invoiceNo || 'invoice') : 'Invoices (' + list.length + ')';
+
+    window.print();
+  }
+
+  window.addEventListener('afterprint', function () {
+    document.title = originalTitle;
+    el.printArea.innerHTML = '';
+  });
+
+  /* ---------------- Init (no sign-in - temp direct access) ---------------- */
+  var shareToken = new URLSearchParams(location.search).get('share');
+  if (shareToken) {
+    enterShareMode(shareToken);
+  } else {
+    // Default landing view - Sept 14 to Sept 17. Still fully editable via
+    // the date pickers or the range chips above.
+    el.fromDate.value = '2026-09-14';
+    el.toDate.value = '2026-09-17';
+    readUrlState();
+    syncChips();
+    loadInvoices();
+  }
+})();
+
+  </script>
+</body>
+</html>
