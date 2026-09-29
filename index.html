@@ -221,6 +221,18 @@ table.items tr.subhead td {
   border: 0.4mm solid #000; padding: 1.4mm 2.4mm; font-size: 8.5pt; font-weight: 700;
 }
 
+.report-range { text-align: center; font-size: 8.5pt; margin-top: 1.5mm; font-weight: 700; }
+table.report { width: 100%; border-collapse: collapse; margin-top: 3mm; font-size: 8.5pt; }
+table.report th {
+  padding: 1.4mm; text-align: left; font-weight: 700;
+  border-top: 0.4mm solid #000; border-bottom: 0.4mm solid #000;
+}
+table.report td { padding: 1.4mm; border-bottom: 0.2mm solid #000; }
+table.report th:nth-child(1), table.report td:nth-child(1) { width: 10mm; text-align: center; }
+table.report th:nth-child(3), table.report td:nth-child(3) { width: 28mm; text-align: right; }
+table.report tr { break-inside: avoid; }
+.report-foot { margin-top: 2.4mm; border: 0.4mm solid #000; padding: 1.4mm 2.4mm; font-size: 8.5pt; font-weight: 700; text-align: right; }
+
 /* ---------- Share link ---------- */
 .share-panel {
   background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
@@ -252,6 +264,18 @@ body.share-mode .col-check { display: none !important; }
 /* Amounts are sensitive - hidden on the list page (and share links) too;
    only the printed invoice/packing sheets still show the grand total. */
 .col-amount { display: none !important; }
+
+.btn.danger { color: #b91c1c; border-color: #fca5a5; }
+.btn.danger:hover { background: #fee2e2; }
+.col-action .btn + .btn { margin-left: 6px; }
+.hidden-panel {
+  margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--border, #ccc);
+  border-radius: 8px; background: #fafafa; width: 100%;
+}
+.hidden-panel h4 { margin: 0 0 6px; font-size: 13px; }
+.hidden-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; font-size: 13px; border-top: 1px solid #eee; }
+.hidden-item:first-of-type { border-top: 0; }
+body.share-mode .admin-only { display: none !important; }
 
 /* ---------- Print rules ---------- */
 @page { size: A4 portrait; margin: 6mm; }
@@ -317,6 +341,9 @@ body.share-mode .col-check { display: none !important; }
 
         <button type="button" class="btn ghost small" id="refreshBtn">Refresh</button>
         <button type="button" class="btn ghost small admin-only" id="shareBtn">Share link</button>
+        <button type="button" class="btn ghost small admin-only" id="hiddenBtn">Removed (0)</button>
+        <button type="button" class="btn ghost small admin-only" id="downloadCustomersBtn">Download customer list (.txt)</button>
+        <button type="button" class="btn ghost small admin-only" id="productQtyBtn">Product quantity report (PDF)</button>
       </div>
 
       <div class="share-panel admin-only" id="sharePanel" hidden>
@@ -338,6 +365,11 @@ body.share-mode .col-check { display: none !important; }
         <p class="share-note" id="shareStatus"></p>
       </div>
     </section>
+
+    <div class="hidden-panel admin-only" id="hiddenPanel" hidden>
+      <h4>Removed from this list (still safe in the database)</h4>
+      <div id="hiddenList"></div>
+    </div>
 
     <div class="share-banner" id="shareBanner" hidden>
       <div>
@@ -430,6 +462,7 @@ body.share-mode .col-check { display: none !important; }
     appView: $('appView'),
     chips: $('rangeChips'), customRange: $('customRange'), fromDate: $('fromDate'), toDate: $('toDate'), applyRange: $('applyRange'),
     search: $('search'), sortBy: $('sortBy'), copies: $('copies'), refreshBtn: $('refreshBtn'),
+    downloadCustomersBtn: $('downloadCustomersBtn'), productQtyBtn: $('productQtyBtn'),
     sumCount: $('sumCount'), sumTotal: $('sumTotal'), sumSelected: $('sumSelected'),
     rows: $('rows'), checkAll: $('checkAll'), status: $('status'),
     printSelected: $('printSelected'), printAll: $('printAll'), printArea: $('printArea'),
@@ -437,7 +470,8 @@ body.share-mode .col-check { display: none !important; }
     shareExpiryUnit: $('shareExpiryUnit'), shareCreateBtn: $('shareCreateBtn'),
     shareLinkRow: $('shareLinkRow'), shareLinkOutput: $('shareLinkOutput'), shareCopyBtn: $('shareCopyBtn'),
     shareStatus: $('shareStatus'), shareBanner: $('shareBanner'), shareBannerRange: $('shareBannerRange'),
-    sharePrintBtn: $('sharePrintBtn')
+    sharePrintBtn: $('sharePrintBtn'),
+    hiddenBtn: $('hiddenBtn'), hiddenPanel: $('hiddenPanel'), hiddenList: $('hiddenList')
   };
 
   /* ---------------- State ---------------- */
@@ -447,6 +481,7 @@ body.share-mode .col-check { display: none !important; }
     invoices: [],       // loaded from Firestore for the current range
     visible: [],        // after search filter
     selected: new Set(),
+    hidden: {},          // id -> {no, name}: removed from the list only, never deleted from the DB
     shareMode: false     // true when this page was opened via a ?share= link (read-only, no amounts)
   };
 
@@ -503,6 +538,66 @@ body.share-mode .col-check { display: none !important; }
 
   function setStatus(msg) { el.status.textContent = msg || ''; }
 
+  /* ---------------- Remove from list (hide only) ----------------
+     Removed invoices are NOT deleted from the database. Their ids are kept
+     in one small doc (shareLinks/hidden_invoices) so the list, print, and
+     every share link (old and new) all skip them. Use "Removed" to restore. */
+  var hiddenRef = db.collection('shareLinks').doc('hidden_invoices');
+  var HIDDEN_LS = 'abs_hidden_invoices';
+
+  function loadHidden() {
+    return hiddenRef.get().then(function (doc) {
+      state.hidden = (doc.exists && doc.data().items) || {};
+      try { localStorage.setItem(HIDDEN_LS, JSON.stringify(state.hidden)); } catch (e) {}
+    }).catch(function (err) {
+      console.error('Could not load removed list', err);
+      try { state.hidden = JSON.parse(localStorage.getItem(HIDDEN_LS) || '{}'); } catch (e) { state.hidden = {}; }
+    }).then(renderHiddenPanel);
+  }
+
+  function renderHiddenPanel() {
+    var ids = Object.keys(state.hidden);
+    el.hiddenBtn.textContent = 'Removed (' + ids.length + ')';
+    if (!ids.length) { el.hiddenPanel.hidden = true; el.hiddenList.innerHTML = ''; return; }
+    el.hiddenList.innerHTML = ids.map(function (id) {
+      var h = state.hidden[id] || {};
+      return '<div class="hidden-item"><span><strong>' + esc(h.no || id) + '</strong> - ' + esc(h.name || '-') + '</span>' +
+        '<button type="button" class="btn small restore" data-id="' + esc(id) + '">Restore</button></div>';
+    }).join('');
+  }
+
+  function removeFromList(ids) {
+    var patch = {};
+    ids.forEach(function (id) {
+      var inv = state.invoices.filter(function (i) { return i.id === id; })[0] || {};
+      patch[id] = { no: inv.invoiceNo || '', name: (inv.customer && inv.customer.name) || '' };
+    });
+    setStatus('Removing...');
+    return hiddenRef.set({ items: patch, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true })
+      .then(function () {
+        Object.keys(patch).forEach(function (id) { state.hidden[id] = patch[id]; state.selected.delete(id); });
+        try { localStorage.setItem(HIDDEN_LS, JSON.stringify(state.hidden)); } catch (e) {}
+        state.invoices = state.invoices.filter(function (i) { return !state.hidden[i.id]; });
+        setStatus('');
+        renderHiddenPanel();
+        renderList();
+      }).catch(function (err) {
+        setStatus('Could not remove: ' + (err && err.message ? err.message : err));
+      });
+  }
+
+  function restoreToList(id) {
+    var patch = {}; patch[id] = firebase.firestore.FieldValue.delete();
+    hiddenRef.set({ items: patch }, { merge: true }).then(function () {
+      delete state.hidden[id];
+      try { localStorage.setItem(HIDDEN_LS, JSON.stringify(state.hidden)); } catch (e) {}
+      renderHiddenPanel();
+      loadInvoices();
+    }).catch(function (err) {
+      setStatus('Could not restore: ' + (err && err.message ? err.message : err));
+    });
+  }
+
   /* ---------------- Load from Firestore ---------------- */
   var loadToken = 0;
 
@@ -529,13 +624,13 @@ body.share-mode .col-check { display: none !important; }
     }
     q = q.orderBy('createdAt', 'desc');
 
-    q.get().then(function (snap) {
+    loadHidden().then(function () { return q.get(); }).then(function (snap) {
       if (token !== loadToken) return; // a newer request replaced this one
       state.invoices = snap.docs.map(function (d) {
         var data = d.data();
         data.id = d.id;
         return data;
-      });
+      }).filter(function (inv) { return !state.hidden[inv.id]; });
       state.selected.clear();
       renderList();
     }).catch(function (err) {
@@ -637,7 +732,7 @@ body.share-mode .col-check { display: none !important; }
         '<td class="num col-hide-sm">' + totalItems + '</td>' +
         '<td class="num col-amount"><strong>' + money(totalAmount) + '</strong></td>' +
         '<td class="col-hide-sm"><span class="tag">' + esc(payment) + '</span></td>' +
-        '<td class="col-action admin-only"><button type="button" class="btn small rowprint">Print</button></td>' +
+        '<td class="col-action admin-only"><button type="button" class="btn small rowprint">Print</button><button type="button" class="btn small danger rowremove" title="Remove from this list">Remove</button></td>' +
         '</tr>';
     }).join('');
 
@@ -890,6 +985,22 @@ body.share-mode .col-check { display: none !important; }
   });
 
   el.rows.addEventListener('click', function (e) {
+    var rm = e.target.closest('.rowremove');
+    if (!rm) return;
+    var ids = rm.closest('tr').dataset.ids.split(',');
+    if (!confirm('Remove ' + (ids.length > 1 ? ids.length + ' invoices' : 'this invoice') + ' from the printable list?\n\nIt is NOT deleted from the database, and it will also disappear from shared links. You can restore it from "Removed".')) return;
+    removeFromList(ids);
+  });
+
+  el.hiddenBtn.addEventListener('click', function () {
+    if (Object.keys(state.hidden).length) el.hiddenPanel.hidden = !el.hiddenPanel.hidden;
+  });
+  el.hiddenList.addEventListener('click', function (e) {
+    var b = e.target.closest('.restore');
+    if (b) restoreToList(b.dataset.id);
+  });
+
+  el.rows.addEventListener('click', function (e) {
     var btn = e.target.closest('.rowprint');
     if (!btn) return;
     // A row now represents one invoice, or a whole same-mobile group merged
@@ -910,6 +1021,133 @@ body.share-mode .col-check { display: none !important; }
     if (state.visible.length > 100 &&
         !confirm('You are about to print ' + state.visible.length + ' invoices. Continue?')) return;
     printInvoices(state.visible);
+  });
+
+  /* ---------------- Customer list export (.txt) ----------------
+     Uses whatever is currently listed (state.visible) - i.e. whatever
+     date range / search is applied on screen - one line per customer.
+     Invoices sharing a mobile number are collapsed into a single
+     customer entry, same as the on-screen table. */
+  function buildCustomerListText(list) {
+    var seen = {};
+    var entries = [];
+    list.forEach(function (inv) {
+      var c = inv.customer || {};
+      var mobile = (c.mobile || '').trim();
+      var key = mobile || ('__no_mobile__' + inv.id);
+      if (seen[key]) return;
+      seen[key] = true;
+      entries.push({
+        name: c.name || '-',
+        address: (c.address || '-').replace(/\s*\n\s*/g, ', '),
+        mobile: mobile || '-',
+        date: fmtDate(invDate(inv))
+      });
+    });
+
+    var range = getRange();
+    var rangeLabel = range
+      ? (fmtDate(range.start) + ' to ' + fmtDate(range.end))
+      : 'All dates';
+
+    var lines = [];
+    lines.push('ABS CRACKERS WORLD - Customer List');
+    lines.push('Date range: ' + rangeLabel);
+    lines.push('Generated: ' + fmtDate(new Date()));
+    lines.push('Total customers: ' + entries.length);
+    lines.push('');
+    lines.push('----------------------------------------');
+    entries.forEach(function (e, i) {
+      lines.push((i + 1) + '. ' + e.name);
+      lines.push('   Mobile : ' + e.mobile);
+      lines.push('   Address: ' + e.address);
+      lines.push('   Date   : ' + e.date);
+      lines.push('----------------------------------------');
+    });
+    return lines.join('\n');
+  }
+
+  function downloadTextFile(filename, text) {
+    var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  el.downloadCustomersBtn.addEventListener('click', function () {
+    if (!state.visible.length) {
+      alert('No invoices are currently listed for this date range/search.');
+      return;
+    }
+    var text = buildCustomerListText(state.visible);
+    var range = getRange();
+    var stamp = range
+      ? (inputValue(range.start) + '_to_' + inputValue(range.end))
+      : 'all-dates';
+    downloadTextFile('customers_' + stamp + '.txt', text);
+  });
+
+  /* ---------------- Product quantity report (PDF via print) ----------------
+     Adds up the qty of every item across whatever invoices are currently
+     listed (same date range / search as on screen) grouped by product
+     description, so you know the total of each product to prepare/pack. */
+  function buildProductQtySummary(list) {
+    var totals = {};   // description -> qty
+    var order = [];    // first-seen order, used as a tie-breaker fallback
+    list.forEach(function (inv) {
+      (inv.items || []).forEach(function (it) {
+        var desc = (it.description || 'Unnamed item').trim();
+        var qty = Number(it.qty || 0);
+        if (!totals.hasOwnProperty(desc)) { totals[desc] = 0; order.push(desc); }
+        totals[desc] += qty;
+      });
+    });
+    var entries = order.map(function (desc) { return { description: desc, qty: totals[desc] }; });
+    entries.sort(function (a, b) { return a.description.toLowerCase() < b.description.toLowerCase() ? -1 : 1; });
+    return entries;
+  }
+
+  function productQtyReportHtml(entries, rangeLabel) {
+    var rows = entries.map(function (e, i) {
+      return '<tr><td>' + (i + 1) + '</td><td>' + esc(e.description) + '</td><td>' + e.qty + '</td></tr>';
+    }).join('');
+    var grandQty = entries.reduce(function (s, e) { return s + e.qty; }, 0);
+
+    return '' +
+    '<section class="sheet">' +
+      '<div class="sheet-head">' +
+        '<div class="brandname">' + esc(SHOP.name) + '</div>' +
+        '<div class="tagline">' + esc(SHOP.addressLine1) + ', ' + esc(SHOP.addressLine2) + '</div>' +
+      '</div>' +
+      '<div class="banner-wrap"><span class="banner">PRODUCT QUANTITY REQUIRED</span></div>' +
+      '<div class="report-range">' + esc(rangeLabel) + '</div>' +
+      '<table class="report">' +
+        '<thead><tr><th>S.No</th><th>Product</th><th>Total Qty</th></tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>' +
+      '<div class="report-foot">Products: ' + entries.length + ' &nbsp; | &nbsp; Total Qty: ' + grandQty + '</div>' +
+    '</section>';
+  }
+
+  el.productQtyBtn.addEventListener('click', function () {
+    if (!state.visible.length) {
+      alert('No invoices are currently listed for this date range/search.');
+      return;
+    }
+    var range = getRange();
+    var rangeLabel = range
+      ? ('Date range: ' + fmtDate(range.start) + ' to ' + fmtDate(range.end))
+      : 'Date range: All dates';
+
+    var entries = buildProductQtySummary(state.visible);
+    el.printArea.innerHTML = productQtyReportHtml(entries, rangeLabel);
+    document.title = 'Product Quantity Report';
+    window.print();
   });
 
   /* ---------------- Invoice sheet (mirrors the PDF layout) ---------------- */
@@ -1188,10 +1426,10 @@ body.share-mode .col-check { display: none !important; }
   if (shareToken) {
     enterShareMode(shareToken);
   } else {
-    // Default landing view - Sept 14 to Sept 17. Still fully editable via
-    // the date pickers or the range chips above.
-    el.fromDate.value = '2026-09-14';
-    el.toDate.value = '2026-09-17';
+    // Default landing view - Sept 21 to today (always today's date). Still
+    // fully editable via the date pickers or the range chips above.
+    el.fromDate.value = '2026-09-21';
+    el.toDate.value = inputValue(new Date());
     readUrlState();
     syncChips();
     loadInvoices();
